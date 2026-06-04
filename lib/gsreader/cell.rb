@@ -14,6 +14,13 @@ module GsReader
     # @return [Google::Apis::SheetsV4::CellData, nil] the underlying API object
     attr_reader :cell_data
 
+    # Wrap a `CellData` returned by the Sheets API. `nil` is allowed and
+    # represents an empty/absent cell; all accessors handle it gracefully.
+    #
+    # @param cell_data [Google::Apis::SheetsV4::CellData, nil]
+    #
+    # @example
+    #   GsReader::Cell.new(nil).value # => nil
     def initialize(cell_data)
       @cell_data = cell_data
     end
@@ -26,6 +33,9 @@ module GsReader
     # which is why we treat "no format at all" as `nil` instead).
     #
     # @return [String, nil]
+    #
+    # @example
+    #   cell.background_color # => "#ff0000"
     def background_color
       fmt = effective_format
       return nil unless fmt
@@ -40,7 +50,11 @@ module GsReader
     end
 
     # Is this cell a checkbox? (i.e. has a BOOLEAN data validation rule)
+    #
     # @return [Boolean]
+    #
+    # @example
+    #   cell.checkbox? # => true
     def checkbox?
       cond = cell_data&.data_validation&.condition
       !cond.nil? && cond.type == 'BOOLEAN'
@@ -48,7 +62,11 @@ module GsReader
 
     # Is this cell a *checked* checkbox? Returns false for unchecked
     # checkboxes and for cells that aren't checkboxes at all.
+    #
     # @return [Boolean]
+    #
+    # @example
+    #   cell.checked? # => true
     def checked?
       return false unless checkbox?
 
@@ -57,6 +75,11 @@ module GsReader
 
     # The cell's evaluated value (after formulas), or nil if empty.
     # Returns a String, Numeric, Boolean, or nil depending on the cell.
+    #
+    # @return [String, Numeric, Boolean, nil]
+    #
+    # @example
+    #   cell.value # => 42
     def value
       ev = cell_data&.effective_value
       return nil unless ev
@@ -70,16 +93,28 @@ module GsReader
 
     # The cell's display string as Sheets would render it (respects
     # number/date formatting). May be nil for empty cells.
+    #
+    # @return [String, nil]
+    #
+    # @example
+    #   # underlying number 1234.5 with currency format
+    #   cell.formatted_value # => "$1,234.50"
     def formatted_value
       cell_data&.formatted_value
     end
 
     private
 
+    # @return [Google::Apis::SheetsV4::CellFormat, nil]
     def effective_format
       cell_data&.effective_format
     end
 
+    # Convert a Sheets `Color` (red/green/blue floats in `[0.0, 1.0]`)
+    # to a `"#rrggbb"` hex string.
+    #
+    # @param color [Google::Apis::SheetsV4::Color]
+    # @return [String]
     def rgb_to_hex(color)
       r = ((color.red   || 0.0) * 255).round
       g = ((color.green || 0.0) * 255).round

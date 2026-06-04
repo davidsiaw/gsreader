@@ -57,6 +57,10 @@ And then use it via a direct path to it:
 gem "gsreader", path: "gsreader" # yes the relative path works.
 ```
 
+## Reference Docs
+
+Available at https://davidsiaw.github.io/gsreader
+
 ## Getting credentials to read/write a Google Sheet
 
 The simplest, most reliable way to use this gem is with a **Google Cloud

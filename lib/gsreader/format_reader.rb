@@ -12,6 +12,15 @@ module GsReader
   #   fr["A1"].checked?           # => true
   #   fr["A1:B2"].map { |row| row.map(&:background_color) }
   class FormatReader < Sheet
+    # Build a read-only formatting client for a given spreadsheet.
+    #
+    # @param spreadsheet_id [String] the ID from the sheet URL
+    # @param credentials [String, Hash, Object] see {GsReader.build_credentials}
+    # @param opts [Hash] forwarded to {GsReader::Sheet#initialize}
+    #
+    # @example
+    #   fr = GsReader::FormatReader.new("1abc...XYZ", "service_account.json")
+    #   fr["A1"].background_color # => "#ff0000"
     def initialize(spreadsheet_id, credentials, **opts)
       super(spreadsheet_id, credentials, scope: GsReader::READ_SCOPE, **opts)
     end
@@ -20,6 +29,12 @@ module GsReader
     #
     # @param range [String]
     # @return [GsReader::Cell, Array<Array<GsReader::Cell>>]
+    #
+    # @example Single cell
+    #   fr["A1"].checked? # => true
+    #
+    # @example Range -> 2D array of {GsReader::Cell}
+    #   fr["A1:B2"].map { |row| row.map(&:background_color) }
     def [](range)
       grid = fetch_grid(range)
       rows = grid_to_cells(grid, range)
@@ -35,6 +50,9 @@ module GsReader
 
     # Returns the first (and only) GridData from a single-range
     # `getSpreadsheet` call with `includeGridData: true`.
+    #
+    # @param range [String]
+    # @return [Google::Apis::SheetsV4::GridData, nil]
     def fetch_grid(range)
       ss = service.get_spreadsheet(
         spreadsheet_id,
@@ -47,6 +65,10 @@ module GsReader
 
     # Turn a GridData into a 2D array of {Cell}s, padding with empty
     # cells if the API omits trailing empty cells/rows.
+    #
+    # @param grid [Google::Apis::SheetsV4::GridData, nil]
+    # @param range [String] the original A1 range, used to compute size
+    # @return [Array<Array<GsReader::Cell>>]
     def grid_to_cells(grid, range)
       width, height = range_dimensions(range)
       raw_rows = grid&.row_data || []
@@ -65,6 +87,10 @@ module GsReader
     # Estimate the (width, height) of an A1 range so we can pad missing
     # cells. For unbounded or whole-column ranges we fall back to the
     # actual returned dimensions.
+    #
+    # @param range [String]
+    # @return [Array(Integer, Integer)] `[width, height]`; either
+    #   element may be `Float::INFINITY` for unbounded ranges
     def range_dimensions(range)
       cell_part = range.to_s.split('!').last || ''
       if cell_part.include?(':')
@@ -83,6 +109,9 @@ module GsReader
 
     # Parse "B7" -> [col_index(0-based), row_index(0-based)]
     # Returns nils for unbounded refs like "A" or "1".
+    #
+    # @param ref [String]
+    # @return [Array(Integer, Integer)] `[col, row]`; either may be `nil`
     def parse_a1(ref)
       m = ref.match(/\A([A-Za-z]+)?(\d+)?\z/)
       return [nil, nil] unless m
@@ -92,6 +121,11 @@ module GsReader
       [col, row]
     end
 
+    # Convert a column letter sequence ("A", "B", ..., "AA") to a
+    # 0-based column index.
+    #
+    # @param letters [String]
+    # @return [Integer]
     def column_letters_to_index(letters)
       letters.upcase.each_char.reduce(0) { |acc, ch| acc * 26 + (ch.ord - 'A'.ord + 1) } - 1
     end

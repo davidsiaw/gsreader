@@ -28,7 +28,29 @@ require 'gsreader/version'
 #   * an already-built Google::Auth credentials object (anything that
 #     responds to `#fetch_access_token!`)
 module GsReader
+  # Base error class for all `GsReader`-specific errors. Catch this if
+  # you want to rescue any failure originating from this gem (as opposed
+  # to errors raised by the underlying `google-api-client`).
+  #
+  # @example
+  #   begin
+  #     GsReader::Reader.new(id, "missing.json")
+  #   rescue GsReader::Error => e
+  #     warn "gsreader failed: #{e.message}"
+  #   end
   class Error < StandardError; end
+
+  # Raised by {GsReader.build_credentials} when the `credentials`
+  # argument can't be turned into a usable Google::Auth credentials
+  # object — e.g. the String is neither JSON nor an existing file path,
+  # or the value is of an unsupported type.
+  #
+  # @example
+  #   begin
+  #     GsReader::Reader.new(id, "/no/such/file.json")
+  #   rescue GsReader::CredentialError => e
+  #     warn "bad credentials: #{e.message}"
+  #   end
   class CredentialError < Error; end
 
   # OAuth scopes used by the reader (read-only) and writer (read/write).
@@ -37,9 +59,24 @@ module GsReader
 
   # Build a Google::Auth credentials object from a variety of inputs.
   #
-  # @param credentials [String, Hash, #fetch_access_token!]
+  # Accepts a path to a JSON key file, a JSON string, a Hash parsed from
+  # a JSON key, or any object that already responds to
+  # `#fetch_access_token!` (which is returned untouched).
+  #
+  # @param credentials [String, Hash, #fetch_access_token!] credential source
   # @param scope [Array<String>] OAuth scopes to request
   # @return [Object] something that responds to `#fetch_access_token!`
+  # @raise [CredentialError] if `credentials` cannot be interpreted
+  #
+  # @example From a JSON key file path
+  #   creds = GsReader.build_credentials("service_account.json",
+  #                                      scope: GsReader::READ_SCOPE)
+  #
+  # @example From an inline Hash
+  #   creds = GsReader.build_credentials(
+  #     JSON.parse(ENV.fetch("GOOGLE_KEY_JSON")),
+  #     scope: GsReader::WRITE_SCOPE
+  #   )
   def self.build_credentials(credentials, scope:)
     return credentials if credentials.respond_to?(:fetch_access_token!)
 
