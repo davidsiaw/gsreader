@@ -45,16 +45,16 @@ fr["A1:B2"].map { |row| row.map(&:background_color) }
 
 ## Installation
 
-Add to your Gemfile:
+This gem was vibe coded so it has intentionally not been pushed to RubyGems. Rather, the recommended installation procedure is to vendor it into your project. Did I mention this was vibe coded?
+
+```
+git submodule add https://github.com/davidsiaw/gsreader
+```
+
+And then use it via a direct path to it:
 
 ```ruby
-gem 'gsreader'
-```
-
-then `bundle install`, or install directly:
-
-```
-$ gem install gsreader
+gem "gsreader", path: "gsreader" # yes the relative path works.
 ```
 
 ## Getting credentials to read/write a Google Sheet
