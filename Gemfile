@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-# Specify your gem's dependencies in base.gemspec
+# Specify your gem's dependencies in gsreader.gemspec
 gemspec
 
 # Specify development dependencies here and not in the gemspec
