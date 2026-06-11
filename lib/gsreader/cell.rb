@@ -42,6 +42,7 @@ module GsReader
 
       color = fmt.background_color_style&.rgb_color || fmt.background_color
       return nil unless color
+
       # Sheets returns plain white (#ffffff) for "no background"; keep that
       # explicit rather than collapsing it to nil — callers who want to
       # treat white as "unset" can compare to "#ffffff" themselves.
@@ -119,7 +120,7 @@ module GsReader
       r = ((color.red   || 0.0) * 255).round
       g = ((color.green || 0.0) * 255).round
       b = ((color.blue  || 0.0) * 255).round
-      format('#%02x%02x%02x', r, g, b)
+      format('#%<r>02x%<g>02x%<b>02x', r: r, g: g, b: b)
     end
   end
 end

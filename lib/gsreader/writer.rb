@@ -100,17 +100,13 @@ module GsReader
     # @param value [Object, Array, Array<Array>]
     # @return [Array<Array>]
     def normalize_values(value)
-      case value
-      when Array
-        if value.empty?
-          [[]]
-        elsif value.first.is_a?(Array)
-          value
-        else
-          [value]
-        end
+      values = value.is_a?(Array) ? value : Array(value)
+      if values.empty?
+        [[]]
+      elsif values.first.is_a?(Array)
+        values
       else
-        [[value]]
+        [values]
       end
     end
   end

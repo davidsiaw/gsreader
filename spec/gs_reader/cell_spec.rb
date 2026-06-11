@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
-require 'google/apis/sheets_v4'
-
 RSpec.describe GsReader::Cell do
-  S = Google::Apis::SheetsV4 # rubocop:disable RSpec/LeakyConstantDeclaration,Lint/ConstantDefinitionInBlock
-
   def make_cell(effective_format: nil, effective_value: nil, data_validation: nil, formatted_value: nil)
     S::CellData.new(
       effective_format: effective_format,
@@ -36,6 +32,13 @@ RSpec.describe GsReader::Cell do
       fmt = S::CellFormat.new(background_color: S::Color.new(blue: 1.0))
       cell = described_class.new(make_cell(effective_format: fmt))
       expect(cell.background_color).to eq('#0000ff')
+    end
+
+    it 'handles edge case: white background color' do
+      style = S::ColorStyle.new(rgb_color: S::Color.new(red: 1.0, green: 1.0, blue: 1.0))
+      fmt = S::CellFormat.new(background_color_style: style)
+      cell = described_class.new(make_cell(effective_format: fmt))
+      expect(cell.background_color).to eq('#ffffff')
     end
   end
 
@@ -79,6 +82,11 @@ RSpec.describe GsReader::Cell do
       cell = described_class.new(make_cell(effective_value: S::ExtendedValue.new(bool_value: true)))
       expect(cell.checked?).to be false
     end
+
+    it 'handles edge case: checkbox with nil value' do
+      cell = described_class.new(make_cell(data_validation: bool_validation))
+      expect(cell.checked?).to be false
+    end
   end
 
   describe '#value' do
@@ -100,6 +108,11 @@ RSpec.describe GsReader::Cell do
       cell = described_class.new(make_cell(effective_value: S::ExtendedValue.new(bool_value: false)))
       expect(cell.value).to be false
     end
+
+    it 'returns formula values' do
+      cell = described_class.new(make_cell(effective_value: S::ExtendedValue.new(formula_value: '=SUM(A1:A2)')))
+      expect(cell.value).to eq('=SUM(A1:A2)')
+    end
   end
 
   describe '#formatted_value' do
@@ -110,13 +123,32 @@ RSpec.describe GsReader::Cell do
   end
 
   describe 'a totally empty wrapper' do
-    it 'is safe to query' do
-      cell = described_class.new(nil)
-      expect(cell.background_color).to be_nil
+    it 'returns nil for background_color' do
+      expect(described_class.new(nil).background_color).to be_nil
+    end
+
+    it 'returns false for checkbox?' do
+      expect(described_class.new(nil).checkbox?).to be false
+    end
+
+    it 'returns false for checked?' do
+      expect(described_class.new(nil).checked?).to be false
+    end
+
+    it 'returns nil for value' do
+      expect(described_class.new(nil).value).to be_nil
+    end
+
+    it 'returns nil for formatted_value' do
+      expect(described_class.new(nil).formatted_value).to be_nil
+    end
+  end
+
+  describe 'edge cases' do
+    it 'handles malformed data validation' do
+      bad_validation = S::DataValidationRule.new(condition: nil)
+      cell = described_class.new(make_cell(data_validation: bad_validation))
       expect(cell.checkbox?).to be false
-      expect(cell.checked?).to be false
-      expect(cell.value).to be_nil
-      expect(cell.formatted_value).to be_nil
     end
   end
 end

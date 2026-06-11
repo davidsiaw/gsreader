@@ -80,28 +80,34 @@ module GsReader
   def self.build_credentials(credentials, scope:)
     return credentials if credentials.respond_to?(:fetch_access_token!)
 
-    json =
-      case credentials
-      when Hash
-        JSON.dump(credentials)
-      when String
-        if credentials.lstrip.start_with?('{')
-          credentials
-        elsif File.file?(credentials)
-          File.read(credentials)
-        else
-          raise CredentialError,
-                "credentials string is neither JSON nor an existing file path: #{credentials.inspect}"
-        end
-      else
-        raise CredentialError, "unsupported credentials type: #{credentials.class}"
-      end
-
+    json = credentials_to_json(credentials)
     Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: StringIO.new(json),
       scope: scope
     )
   end
+
+  def self.credentials_to_json(credentials)
+    case credentials
+    when Hash
+      JSON.dump(credentials)
+    when String
+      string_to_json(credentials)
+    else
+      raise CredentialError, "unsupported credentials type: #{credentials.class}"
+    end
+  end
+
+  def self.string_to_json(credentials)
+    if credentials.lstrip.start_with?('{')
+      credentials
+    elsif File.file?(credentials)
+      File.read(credentials)
+    else
+      raise CredentialError, "credentials string is neither JSON nor an existing file path: #{credentials.inspect}"
+    end
+  end
+  private_class_method :credentials_to_json, :string_to_json
 end
 
 require 'gsreader/sheet'

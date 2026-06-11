@@ -72,14 +72,10 @@ module GsReader
     def grid_to_cells(grid, range)
       width, height = range_dimensions(range)
       raw_rows = grid&.row_data || []
-
-      # For unbounded ranges ("A:A", whole column / row) the API itself
-      # decides the shape; fall back to what it returned.
-      height = raw_rows.length if height == Float::INFINITY
-      width = (raw_rows.map { |r| (r&.values || []).length }.max || 0) if width == Float::INFINITY
+      width, height = fallback_dimensions(raw_rows, width, height)
 
       Array.new(height) do |r|
-        row_cells = (raw_rows[r]&.values) || []
+        row_cells = raw_rows[r]&.values || []
         Array.new(width) { |c| Cell.new(row_cells[c]) }
       end
     end
@@ -94,17 +90,27 @@ module GsReader
     def range_dimensions(range)
       cell_part = range.to_s.split('!').last || ''
       if cell_part.include?(':')
-        a, b = cell_part.split(':', 2)
-        ca, ra = parse_a1(a)
-        cb, rb = parse_a1(b)
-        if ca && cb && ra && rb
-          [(cb - ca).abs + 1, (rb - ra).abs + 1]
-        else
-          [Float::INFINITY, Float::INFINITY] # let raw rows decide
-        end
+        bounded_dimensions(cell_part)
       else
         [1, 1]
       end
+    end
+
+    def bounded_dimensions(cell_part)
+      a, b = cell_part.split(':', 2)
+      ca, ra = parse_a1(a)
+      cb, rb = parse_a1(b)
+      if ca && cb && ra && rb
+        [(cb - ca).abs + 1, (rb - ra).abs + 1]
+      else
+        [Float::INFINITY, Float::INFINITY]
+      end
+    end
+
+    def fallback_dimensions(raw_rows, width, height)
+      new_height = height == Float::INFINITY ? raw_rows.length : height
+      new_width = width == Float::INFINITY ? raw_rows.map { |r| (r&.values || []).length }.max || 0 : width
+      [new_width, new_height]
     end
 
     # Parse "B7" -> [col_index(0-based), row_index(0-based)]
@@ -127,7 +133,7 @@ module GsReader
     # @param letters [String]
     # @return [Integer]
     def column_letters_to_index(letters)
-      letters.upcase.each_char.reduce(0) { |acc, ch| acc * 26 + (ch.ord - 'A'.ord + 1) } - 1
+      letters.upcase.each_char.reduce(0) { |acc, ch| (acc * 26) + (ch.ord - 'A'.ord + 1) } - 1
     end
   end
 end

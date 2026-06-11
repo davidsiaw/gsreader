@@ -20,6 +20,7 @@ module GsReader
     # @param gid [Integer, String, nil] default tab to use, identified by
     #   `sheetId` (the `gid=...` value in the URL). Resolved to a title
     #   on first use. Takes precedence over `sheet:` if both are given.
+    # @param service [Google::Apis::SheetsV4::SheetsService, nil] test double or nil
     #
     # @example Subclasses use this via `super`
     #   class MyClient < GsReader::Sheet
@@ -27,14 +28,20 @@ module GsReader
     #       super(id, creds, scope: GsReader::READ_SCOPE, **opts)
     #     end
     #   end
+    # rubocop:disable Metrics/ParameterLists
     def initialize(spreadsheet_id, credentials, scope:, application_name: 'gsreader',
-                   sheet: nil, gid: nil)
+                   sheet: nil, gid: nil, service: nil)
       @spreadsheet_id = spreadsheet_id
       @default_sheet = sheet
       @default_gid = gid
-      @service = Google::Apis::SheetsV4::SheetsService.new
+      @service = service || build_service
       @service.client_options.application_name = application_name
       @service.authorization = GsReader.build_credentials(credentials, scope: scope)
+    end
+    # rubocop:enable Metrics/ParameterLists
+
+    def build_service
+      Google::Apis::SheetsV4::SheetsService.new
     end
 
     # Title of the tab that bare ranges will be resolved against, or nil

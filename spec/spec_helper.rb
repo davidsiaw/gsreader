@@ -2,6 +2,9 @@
 
 require 'bundler/setup'
 require 'gsreader'
+require 'google/apis/sheets_v4'
+
+S = Google::Apis::SheetsV4
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
