@@ -32,6 +32,7 @@ module GsReader
     def initialize(spreadsheet_id, credentials, scope:, application_name: 'gsreader',
                    sheet: nil, gid: nil, service: nil)
       @spreadsheet_id = spreadsheet_id
+      @raw_credentials = credentials
       @default_sheet = sheet
       @default_gid = gid
       @service = service || build_service

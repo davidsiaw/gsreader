@@ -25,5 +25,54 @@ module GsReader
     def initialize(spreadsheet_id, credentials, **opts)
       super(spreadsheet_id, credentials, scope: GsReader::READ_SCOPE, **opts)
     end
+
+    # When did this checkbox most recently become checked? Delegates to a
+    # {GsReader::RevisionReader} built lazily from the same credentials.
+    #
+    # Note: reading revision history needs the **Drive** read scope
+    # (`drive.readonly`), which is broader than the `Reader`'s
+    # spreadsheets-only scope. The delegate requests that wider scope
+    # from your credentials on first use, so the Drive API must be
+    # enabled and granted. See {GsReader::RevisionReader#last_checked_at}.
+    #
+    # @param range [String] single-cell A1 reference
+    # @param since [Time, nil] only consider revisions at/after this time
+    # @return [Time, nil] `nil` iff the box is not currently checked
+    #
+    # @example
+    #   reader.last_checked_at("B2") # => 2026-06-10 14:03:00 UTC, or nil
+    def last_checked_at(range, since: nil)
+      revision_reader.last_checked_at(range, since: since)
+    end
+
+    # Like {#last_checked_at} but also reports whether the timestamp is
+    # exact. See {GsReader::RevisionReader#last_checked}.
+    #
+    # @param range [String] single-cell A1 reference
+    # @param since [Time, nil] only consider revisions at/after this time
+    # @return [Hash{Symbol => Object, nil}] `{ at: Time, exact: Boolean }`
+    def last_checked(range, since: nil)
+      revision_reader.last_checked(range, since: since)
+    end
+
+    # The checked/unchecked history of a single checkbox cell. See
+    # {GsReader::RevisionReader#history}.
+    #
+    # @param range [String] single-cell A1 reference
+    # @param since [Time, nil] only consider revisions at/after this time
+    # @return [Array<Hash>] `{ at: Time, checked: Boolean }` entries
+    def checkbox_history(range, since: nil)
+      revision_reader.history(range, since: since)
+    end
+
+    # A {GsReader::RevisionReader} sharing this reader's spreadsheet,
+    # credentials and default tab. Built once and memoized.
+    #
+    # @return [GsReader::RevisionReader]
+    def revision_reader
+      @revision_reader ||= RevisionReader.new(
+        spreadsheet_id, @raw_credentials, sheet: @default_sheet, gid: @default_gid
+      )
+    end
   end
 end

@@ -19,6 +19,10 @@ RSpec.describe GsReader do
     expect(GsReader::FormatReader).to be < GsReader::Sheet
   end
 
+  it 'defines RevisionReader class' do
+    expect(GsReader::RevisionReader).to be < GsReader::Sheet
+  end
+
   describe '.build_credentials' do
     it 'returns passthrough for credentials objects' do
       credentials_obj = instance_double(Google::Auth::UserRefreshCredentials,

@@ -29,6 +29,7 @@ reader = GsReader::Reader.new("1abc...XYZ", "service_account.json")
 reader["A1"]              # => "Hello"
 reader["A1:B3"]           # => [["a", "b"], ["c", "d"], ["e", "f"]]
 reader["Sheet2!A1:A10"]   # => values from a specific tab
+reader.last_checked_at("B2") # => Time the checkbox last became checked (nil iff unchecked)
 
 writer = GsReader::Writer.new("1abc...XYZ", "service_account.json")
 writer["A1"]    = "hello"
@@ -41,6 +42,12 @@ fr["A1"].background_color   # => "#ff0000" (or nil if no fill)
 fr["A1"].checked?           # => true if it's a checked checkbox
 fr["A1"].value              # => the cell's value (string / number / bool / nil)
 fr["A1:B2"].map { |row| row.map(&:background_color) }
+
+rr = GsReader::RevisionReader.new("1abc...XYZ", "service_account.json", gid: 0)
+rr.last_checked_at("B2")    # => Time the box last became checked (nil iff unchecked)
+rr.last_checked("B2")       # => { at: Time, exact: true } (exact: false = lower bound)
+rr.currently_checked?("B2") # => true
+rr.history("B2")            # => [{ at: Time, checked: false }, { at: Time, checked: true }]
 ```
 
 ## Installation
@@ -201,6 +208,20 @@ Read-only client. Uses the
 - `reader.get_range(range)` → raw `Google::Apis::SheetsV4::ValueRange`.
 - `reader.spreadsheet` → spreadsheet metadata.
 - `reader.sheet_titles` → array of tab names.
+- `reader.last_checked_at(range, since: nil)` → `Time` a checkbox last
+  became checked, or `nil` if it isn't currently checked. Convenience
+  delegate to {GsReader::RevisionReader}.
+- `reader.last_checked(range, since: nil)` → `{ at:, exact: }` (see
+  `RevisionReader`).
+- `reader.checkbox_history(range, since: nil)` → chronological
+  `{ at:, checked: }` entries.
+- `reader.revision_reader` → the memoized {GsReader::RevisionReader}
+  backing the three methods above.
+
+  **Heads up:** these revision methods need the broader **Drive** read
+  scope (`drive.readonly`), not the spreadsheets-only scope `Reader`
+  itself uses. The delegate requests it from your credentials on first
+  use, so the Drive API must be enabled and granted.
 
 ### `GsReader::Writer.new(spreadsheet_id, credentials, value_input_option: 'USER_ENTERED')`
 
@@ -237,6 +258,46 @@ of `Cell`s for a multi-cell range. Uses the same read-only scope as
 - `cell.formatted_value` → the display string Sheets would render.
 - `cell.cell_data` → the underlying
   `Google::Apis::SheetsV4::CellData` for anything else you need.
+
+### `GsReader::RevisionReader.new(spreadsheet_id, credentials)`
+
+Answers **"when was this checkbox last checked?"** — something the
+Sheets v4 API itself can't tell you, because it exposes no per-cell
+edit timestamp (there's a long-standing open feature request:
+<https://issuetracker.google.com/issues/144151809>).
+
+Instead of polling, it reads the file's **Drive revision history**
+(`revisions.list` gives a timestamp per saved revision) and exports
+each past revision of the cell to CSV via the Sheets `export`
+endpoint. A checkbox exports as the text `TRUE` / `FALSE`, so the
+checked-state can be reconstructed over time and the flip located.
+
+- `rr.last_checked_at(range, since: nil)` → `Time` the checkbox most
+  recently transitioned from unchecked → checked (start of the current
+  checked streak). **`nil` means exactly one thing: the box is not
+  currently checked** (so a non-`nil` result is a reliable "it's
+  checked" signal).
+- `rr.last_checked(range, since: nil)` → `{ at: Time, exact: Boolean }`
+  or `nil`. `exact: false` means the box was already checked in the
+  oldest revision Drive still keeps, so `at` is a *lower bound*
+  ("checked at or before this") rather than the precise flip — Drive
+  merges/prunes old revisions, so the true moment may be earlier.
+- `rr.currently_checked?(range)` → `true` if checked in the latest
+  revision.
+- `rr.history(range, since: nil)` → chronological array of
+  `{ at: Time, checked: Boolean }`, one entry per inspected revision.
+- `range` must be a **single cell** (`"B2"` or `"Sheet2!B2"`).
+- Pass `gid:` (the `gid=` from the sheet URL) or `sheet:` to pick the
+  tab; bare ranges default to `gid: 0`.
+
+Uses the `https://www.googleapis.com/auth/drive.readonly` scope, so the
+**Google Drive API must be enabled** on your Cloud project and the
+sheet shared with the credentials.
+
+**Caveats:** Drive *merges/prunes* revisions — this is not a
+keystroke-level log, so the timestamp is as precise as the file's
+version history. It makes one CSV export per revision (O(revisions)
+HTTP calls); bound the work with `since:`.
 
 ## Development
 
